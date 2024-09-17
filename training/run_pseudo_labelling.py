@@ -980,19 +980,21 @@ def main():
                         prompt_ids = [token for token in token_ids if token != decoder_eot_token_id]
                         prompt_ids = [decoder_prev_token_id] + prompt_ids[timestamp_position:]
                         concatenated_prev.append(prompt_ids)
-                return {"condition_on_prev": concatenated_prev}
+                return {"condition_on_prev_tmp": concatenated_prev}
 
             if data_args.concatenate_audio:
                 with accelerator.main_process_first():
                     raw_datasets[split] = raw_datasets[split].map(
                         add_concatenated_text,
                         input_columns=["eval_preds", "condition_on_prev"],
-                        remove_columns=["eval_preds"],
+                        remove_columns=["eval_preds", "condition_on_prev"],
                         desc="Setting condition on prev...",
                         batched=True,
                         batch_size=preprocessing_batch_size,
                         num_proc=num_workers,
                     )
+                    # Rename back to original column name.
+                    raw_datasets[split] = raw_datasets[split].rename_column("condition_on_prev_tmp", "condition_on_prev")
 
     logger.info("***** Running Labelling *****")
     logger.info("  Instantaneous batch size per device =" f" {training_args.per_device_eval_batch_size}")
